@@ -1,0 +1,27 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  vars:
+    ansible_ssh_pass: '{{ access_password }}'
+
+  tasks:
+   - name: check if a reboot is needed for Ubuntu boxes
+     register: reboot_required_file
+     stat:
+       path: '/var/run/reboot-required'
+       get_md5: 'no'
+
+   - name: reboot the server
+     reboot:
+       msg: "Reboot initiated by Ansible due to kernel updates"
+       connect_timeout: 5
+       reboot_timeout: 300
+       pre_reboot_delay: 0
+       post_reboot_delay: 30
+       test_command: uptime
+     when: reboot_required_file.stat.exists
+

@@ -1,0 +1,27 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  vars:
+    ansible_ssh_pass: '{{ access_password }}'
+
+  tasks:
+    - name: apt update cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: upgrade all apt packages
+      apt:
+        upgrade: dist
+        force_apt_get: yes
+
+
+    - name: set hostname
+      hostname:
+        name: '{{ inventory_hostname }}'
+
