@@ -1,0 +1,15 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  vars:
+    ansible_ssh_pass: '{{ access_password }}'
+
+  roles:
+    - gaiad
+
+
+

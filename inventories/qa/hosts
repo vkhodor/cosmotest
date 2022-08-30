@@ -1,3 +1,0 @@
-[cosmos_node]
-cosmos-01.local ansible_host='192.168.0.194'
-

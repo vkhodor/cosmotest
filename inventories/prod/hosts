@@ -1,0 +1,4 @@
+[cosmos_node]
+#cosmos-01.local ansible_host='192.168.0.194' ansible_port='30322'
+cosmos-02.local ansible_host='192.168.0.186' ansible_port='30322'
+

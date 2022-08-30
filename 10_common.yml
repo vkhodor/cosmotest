@@ -20,6 +20,13 @@
         upgrade: dist
         force_apt_get: yes
 
+    - name: install common packages
+      apt:
+        name:
+          - vim
+          - iputils-ping
+          - net-tools
+          - less
 
     - name: set hostname
       hostname:

@@ -1,0 +1,231 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  vars:
+    ansible_ssh_pass: '{{ access_password }}'
+    sshd_config: '/etc/ssh/sshd_config'
+
+  tasks:
+    - name: install packages
+      apt:
+        name:
+          - debsums
+          - apt-show-versions
+          - rkhunter
+          - chkrootkit
+          - libpam-tmpdir
+          - apt-listchanges
+          - fail2ban
+          - iptables
+          - libpam-cracklib
+          - sysstat
+        state: present
+      notify:
+        - enable_fail2ban
+
+    - name: remove packages
+      apt:
+        name: postfix
+        state: absent
+
+    - name: tune sshd_config
+      lineinfile:
+        dest: '{{ sshd_config }}'
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      notify: restart_sshd
+      with_items:
+        - regexp: '^#?PermitEmptyPasswords'
+          line: 'PermitEmptyPasswords no'
+        - regexp: '^#?PermitRootLogin'
+          line: 'PermitRootLogin no'
+        - regexp: '^#?UsePAM'
+          line: 'UsePAM yes'
+        - regexp: '^#?Port'
+          line: 'Port 30322'
+        - regexp: '^#?LogLevel'
+          line: 'LogLevel VERBOSE'
+        - regexp: '^#?MaxAuthTries'
+          line: 'MaxAuthTries 3'
+        - regexp: '^#?MaxSessions'
+          line: 'MaxSessions 2'
+        - regexp: '^#?AllowAgentForwarding'
+          line: 'AllowAgentForwarding no'
+        - regexp: '^#?AllowTcpForwarding'
+          line: 'AllowTcpForwarding no'
+        - regexp: '^#?X11Forwarding'
+          line: 'X11Forwarding no'
+        - regexp: '^#?TCPKeepAlive'
+          line: 'TCPKeepAlive no'
+        - regexp: '^#?Compression'
+          line: 'Compression no'
+        - regexp: '^#?ClientAliveCountMax'
+          line: 'ClientAliveCountMax 2'
+
+    - name: tune SHA configuration
+      lineinfile:
+        dest: '/etc/login.defs'
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      notify: restart_sshd
+      with_items:
+        - regexp: '^#? SHA_CRYPT_MIN_ROUNDS'
+          line: 'SHA_CRYPT_MIN_ROUNDS 5000'
+        - regexp: '^#? SHA_CRYPT_MAX_ROUNDS'
+          line: 'SHA_CRYPT_MAX_ROUNDS 5000'
+
+    - name: set sysctl options
+      sysctl:
+        name: '{{ item.name }}'
+        value: '{{ item.value }}'
+        state: present
+        sysctl_set: yes
+      with_items:
+        - name: net.ipv4.conf.all.accept_redirects
+          value: '0'
+        - name: net.ipv4.conf.all.log_martians
+          value: '1'
+        - name: net.ipv4.conf.all.rp_filter
+          value: '1'
+        - name: net.ipv4.conf.all.send_redirects
+          value: '0'
+        - name: net.ipv4.conf.default.accept_redirects
+          value: '0'
+        - name: net.ipv4.conf.default.log_martians
+          value: '1'
+        - name: net.ipv6.conf.all.accept_redirects
+          value: '0'
+        - name: net.ipv6.conf.default.accept_redirects
+          value: '0'
+        - name: net.ipv4.conf.default.rp_filter
+          value: '1'
+        - name: net.ipv4.conf.all.rp_filter
+          value: '1'
+        - name: fs.suid_dumpable
+          value: '0'
+        - name: kernel.core_pattern
+          value: '|/bin/false'
+        - name: dev.tty.ldisc_autoload
+          value: '0'
+        - name: fs.protected_fifos
+          value: 2
+        - name: kernel.kptr_restrict
+          value: 2
+        - name: kernel.modules_disabled
+          value: 1
+        - name: kernel.perf_event_paranoid
+          value: 3
+        - name: kernel.randomize_va_space
+          value: 2
+        - name: kernel.unprivileged_bpf_disabled
+          value: 1
+        - name: net.core.bpf_jit_harden
+          value: 2
+        - name: kernel.sysrq
+          value: 0
+
+    - name: set core dump limits
+      pam_limits:
+        domain: '*'
+        limit_type: '{{ item }}'
+        limit_item: core
+        value: '0'
+      with_items:
+        - hard
+        - soft
+
+    - name: copy jail.conf to jail.local
+      copy:
+        src: '/etc/fail2ban/jail.conf'
+        dest: '/etc/fail2ban/jail.local'
+        remote_src: yes
+      notify:
+        - restart_fail2ban
+
+    - name: tune jail.local
+      lineinfile:
+        dest: '/etc/fail2ban/jail.local'
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      notify: restart_fail2ban
+      with_items:
+        - regexp: '^backend\ =\ %\(sshd_backend\)s'
+          line: 'backend = systemd'
+        - regexp: '^port\ \ \ \ \=\ ssh'
+          line: 'port = 30322'
+
+
+    - name: set mode for x86_64-linux-gnu-as
+      file:
+        path: '/usr/bin/x86_64-linux-gnu-as'
+        mode: 0700
+
+    - name: install auditd
+      apt:
+        name: auditd
+        state: present
+      notify:
+        - enable_auditd
+
+    - name: copy audit.rules
+      copy:
+        src: 'files/audit.rules'
+        dest: '/etc/audit/rules.d/custom.rules'
+        mode: 0600
+
+    - name: copy modprobe files
+      copy:
+        src: '{{ item }}'
+        dest: '/etc/modprobe.d/{{ item }}'
+      with_items:
+        - dccp.conf
+        - rds.conf
+        - sctp.conf
+        - tipc.conf
+
+    - name: add blacklist usb-storage to /etc/modprobe.d/blacklist.conf
+      lineinfile:
+        dest: /etc/modprobe.d/blacklist.conf
+        insertafter: EOF
+        line: 'blacklist usb-storage'
+
+    - name: add blacklist protocols to /etc/modprobe.d/blacklist.conf
+      lineinfile:
+        dest: /etc/modprobe.d/blacklist.conf
+        insertafter: EOF
+        line: 'blacklist {{ item }}'
+      with_items:
+        - dccp
+        - rds
+        - sctp
+        - tipc
+
+  handlers:
+    - name: restart_sshd
+      systemd:
+        name: ssh
+        state: restarted
+
+    - name: enable_fail2ban
+      systemd:
+        name: fail2ban
+        enabled: yes
+
+    - name: restart_fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted
+
+    - name: enable_auditd
+      systemd:
+        name: auditd
+        enabled: yes
+
+    - name: restart_auditd
+      systemd:
+        name: auditd
+        state: restarted

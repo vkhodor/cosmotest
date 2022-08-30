@@ -1,0 +1,28 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  vars:
+    ansible_ssh_pass: '{{ access_password }}'
+
+  tasks:
+    - name: import lynis apt-key
+      shell: 'wget -O - https://packages.cisofy.com/keys/cisofy-software-public.key | sudo apt-key add -'
+   
+    - name: add lynis apt repo
+      shell: 'echo "deb https://packages.cisofy.com/community/lynis/deb/ stable main" | sudo tee /etc/apt/sources.list.d/cisofy-lynis.list'
+
+    - name: apt update cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: install lynis package
+      apt:
+        name: lynis
+        state: latest
+

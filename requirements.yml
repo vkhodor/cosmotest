@@ -1,0 +1,9 @@
+---
+- src: git@github.com:vkhodor/role-golang.git
+  name: golang
+  scm: git
+
+- src: git@github.com:vkhodor/role-gaiad.git
+  name: gaiad
+  scm: git
+
