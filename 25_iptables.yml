@@ -1,0 +1,88 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+  tasks:
+    - name: apt update cache
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: install iptables-persistent
+      apt:
+        name:
+          - iptables-persistent
+      notify:
+        - enable_iptables
+
+    - name: stop fail2ban
+      systemd:
+        name: fail2ban
+        state: stopped
+
+    - name: accept all local traffic
+      iptables:
+        chain: INPUT
+        in_interface: 'lo'
+        jump: ACCEPT
+
+    - name: for systemd-resolver
+      iptables:
+        chain: INPUT
+        protocol: udp
+        source_port: '53'
+        ctstate: ESTABLISHED
+        jump: ACCEPT
+
+    - name: for systemd-resolver
+      iptables:
+        chain: INPUT
+        protocol: udp
+        destination_port: '53'
+        ctstate: NEW,ESTABLISHED
+        jump: ACCEPT
+
+    - name: add iptables rules for ssh and gaiad
+      iptables:
+        chain: INPUT
+        jump: ACCEPT
+        protocol: tcp
+        match: tcp
+        destination_port: '{{ item }}'
+      with_items:
+        - '22'
+        - '30322'
+        - '26656'
+        - '9090'
+        - '9091'
+
+    - name: set policy DROP in INPUT
+      iptables:
+        chain: INPUT
+        policy: DROP
+
+    - name: save configuration
+      shell: 'iptables-save > /etc/iptables/rules.v4'
+      notify:
+        - restart_iptables
+
+    - name: start fail2ban
+      systemd:
+        name: fail2ban
+        state: started
+
+  handlers:
+    - name: enable_iptables
+      systemd:
+        name: iptables
+        enabled: yes
+
+    - name: restart_iptables
+      systemd:
+        name: iptables
+        state: restarted
+

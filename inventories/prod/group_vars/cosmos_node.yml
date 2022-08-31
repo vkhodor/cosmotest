@@ -1,5 +1,4 @@
 access_user: hvv
-access_password: 'qwqwqwe'
 
 go_version: '1.19'
-gaia_version: 'v6.0.0'
+gaia_version: 'v7.0.3'

@@ -6,7 +6,6 @@
   become: true
 
   vars:
-    ansible_ssh_pass: '{{ access_password }}'
     sshd_config: '/etc/ssh/sshd_config'
 
   tasks:
@@ -22,7 +21,6 @@
           - fail2ban
           - iptables
           - libpam-cracklib
-          - sysstat
         state: present
       notify:
         - enable_fail2ban
@@ -115,8 +113,6 @@
           value: 2
         - name: kernel.kptr_restrict
           value: 2
-        - name: kernel.modules_disabled
-          value: 1
         - name: kernel.perf_event_paranoid
           value: 3
         - name: kernel.randomize_va_space
@@ -125,8 +121,6 @@
           value: 1
         - name: net.core.bpf_jit_harden
           value: 2
-        - name: kernel.sysrq
-          value: 0
 
     - name: set core dump limits
       pam_limits:
@@ -176,6 +170,8 @@
         src: 'files/audit.rules'
         dest: '/etc/audit/rules.d/custom.rules'
         mode: 0600
+      notify:
+        - restart_auditd
 
     - name: copy modprobe files
       copy:
