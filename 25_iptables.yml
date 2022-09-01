@@ -5,6 +5,9 @@
   user: '{{ access_user }}'
   become: true
 
+  vars:
+    iface: 'eth0'
+
   tasks:
     - name: apt update cache
       apt:
@@ -51,19 +54,36 @@
         chain: INPUT
         jump: ACCEPT
         protocol: tcp
-        match: tcp
+        ctstate: NEW,ESTABLISHED
         destination_port: '{{ item }}'
+      with_items:
+        - '22'
+        - '53'
+        - '30322'
+        - '26656'
+        - '9090'
+        - '9091'
+        - '8888'
+
+    - name: add iptables rules for ssh and gaiad
+      iptables:
+        chain: INPUT
+        jump: ACCEPT
+        protocol: tcp
+        ctstate: ESTABLISHED
+        source_port: '{{ item }}'
       with_items:
         - '22'
         - '30322'
         - '26656'
         - '9090'
         - '9091'
+        - '8888'
 
     - name: set policy DROP in INPUT
       iptables:
         chain: INPUT
-        policy: DROP
+        jump: DROP
 
     - name: save configuration
       shell: 'iptables-save > /etc/iptables/rules.v4'

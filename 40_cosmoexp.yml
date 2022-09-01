@@ -1,0 +1,64 @@
+---
+- hosts:
+    cosmos_node
+
+  user: '{{ access_user }}'
+  become: true
+
+#  roles:
+#    - golang
+
+  tasks:
+    - name: install git
+      apt:
+        name: git
+        state: latest
+      notify:
+        - remove_git
+
+    - name: clone cosmoexp
+      git:
+        repo: 'https://github.com/vkhodor/cosmoexp.git'
+        dest: '/tmp/cosmoexp'
+        update: yes
+
+    - name: build cosmoexp
+      shell: 'source /etc/profile.d/go.sh; cd /tmp/cosmoexp; go build .'
+      args:
+        executable: /bin/bash
+
+    - name: copy cosmoexp binary
+      copy:
+        src: '/tmp/cosmoexp/cosmoexp'
+        dest: '/usr/local/bin/cosmoexp'
+        remote_src: yes
+        mode: 0755
+
+    - name: copy systemd unit for cosmoexp
+      copy:
+        src: 'files/cosmoexp.service'
+        dest: '/etc/systemd/system/cosmoexp.service'
+      notify:
+        - daemon_reload
+        - enable_cosmoexp
+        - start_cosmoexp
+
+  handlers:
+    - name: remove_git
+      apt:
+        name: git
+        state: absent
+
+    - name: daemon_reload
+      systemd:
+        daemon_reload: yes
+
+    - name: enable_cosmoexp
+      systemd:
+        name: cosmoexp
+        enabled: yes
+
+    - name: start_cosmoexp
+      systemd:
+        name: cosmoexp
+        state: started

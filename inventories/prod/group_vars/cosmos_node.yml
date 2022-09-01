@@ -1,4 +1,5 @@
-access_user: hvv
+access_user: devops
 
 go_version: '1.19'
 gaia_version: 'v7.0.3'
+gaiad_extra_args: ''

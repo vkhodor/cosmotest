@@ -1,0 +1,13 @@
+[Unit]
+Description=cosmoexp service
+After=gaiad.service
+
+[Service]
+User=gaia
+ExecStart=/usr/local/bin/cosmoexp
+Restart=always
+RestartSec=3
+LimitNOFILE=4096
+Environment="COSMOEXP_ADDR=:8888"
+[Install]
+WantedBy=multi-user.target
