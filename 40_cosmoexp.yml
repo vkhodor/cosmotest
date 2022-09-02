@@ -33,6 +33,8 @@
         dest: '/usr/local/bin/cosmoexp'
         remote_src: yes
         mode: 0755
+      notify:
+        - restart_cosmoexp
 
     - name: copy systemd unit for cosmoexp
       copy:
@@ -62,3 +64,8 @@
       systemd:
         name: cosmoexp
         state: started
+
+    - name: restart_cosmoexp
+      systemd:
+        name: cosmoexp
+        state: restarted
